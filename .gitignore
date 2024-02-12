@@ -1,0 +1,29 @@
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# Environment-specific settings
+.env
+
+# Local development settings
+*.sqlite3
+*.log
+*.pyo
+
+# Static files
+/staticfiles/
+
+# Media files
+/media/
+
+# Dependency directories
+/node_modules/
+/bower_components/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Other generated files
+.DS_Store
