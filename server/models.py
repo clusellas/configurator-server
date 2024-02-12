@@ -122,6 +122,18 @@ class Question(models.Model):
     Question = models.CharField(max_length=100)
     Options = models.ManyToManyField(Option)
 
+class Object(models.Model):
+    coleccion = models.CharField(max_length=5)
+    ancho = models.DecimalField(max_digits=28, decimal_places=10)
+    alto = models.DecimalField(max_digits=28, decimal_places=10)
+    distribucion_cajones = models.DecimalField(max_digits=28, decimal_places=10)
+    eje = models.CharField(max_length=5)
+
+class Render(models.Model):
+    imagen_ahora = models.ImageField(upload_to='images/')
+    objeto = models.ForeignKey(Object, on_delete=models.CASCADE)
+    preguntas = models.ManyToManyField(Question)
+
 
 
 
