@@ -8,13 +8,15 @@ from .viewsets.configurationObjectViewset import configurationObjectViewset
 from .viewsets.coleccionViewset import coleccionViewset
 from .viewsets.designColeccionViewset import designColeccionViewset
 from .viewsets.ejeViewset import ejeViewset
+from .viewsets.opcionViewset import opcionViewset
 
 router = DefaultRouter()
 router.register(r'colecciones', coleccionViewset, basename='coleccion')
-router.register(r'configurationObject', configurationObjectViewset)
+router.register(r'configuration-object', configurationObjectViewset)
 router.register(r'designcoleccion', designColeccionViewset, basename='designcoleccion')
 router.register(r'eje', ejeViewset)
 router.register(r'ancho', anchoViewset)
+router.register(r'opcion', opcionViewset)
 router.register(r'articles', articleViewset, basename='articles')
 
 

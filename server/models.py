@@ -38,6 +38,7 @@ class Valor(models.Model):
 class Opcion(models.Model):
     orden = models.IntegerField()
     name = models.CharField(max_length=50)
+    excluded = models.BooleanField(default=False)
     valores = models.ManyToManyField(Valor)
 
 
@@ -74,36 +75,72 @@ class ConfigurationObject(models.Model):
 
     articulo = models.ForeignKey(Articles, on_delete=models.CASCADE)
     current_linea = models.ForeignKey(LineaConfigurador, on_delete=models.CASCADE, null=True)
+    opciones_y_valores = models.ManyToManyField(Valor, through='ConfigurationOption')
 
-    opcion1 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj1', null=True)
-    opcion2 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj2', null=True)
-    opcion3 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj3', null=True)
-    opcion4 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj4', null=True)
-    opcion5 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj5', null=True)
-    opcion6 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj6', null=True)
-    opcion7 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj7', null=True)
-    opcion8 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj8', null=True)
-    opcion9 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj9', null=True)
-    opcion10 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj10', null=True)
-    opcion11 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj11', null=True)
-    opcion12 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj12', null=True)
-    opcion13 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj13', null=True)
-    opcion14 = models.ForeignKey(Opcion, on_delete=models.CASCADE, related_name='obj14', null=True)
+    def fill_from_linea(self):
+        if self.current_linea:
+            # Clear existing configuration options
+            self.opciones_y_valores.clear()
 
-    valor1 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value1', null=True)
-    valor2 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value2', null=True)
-    valor3 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value3', null=True)
-    valor4 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value4', null=True)
-    valor5 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value5', null=True)
-    valor6 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value6', null=True)
-    valor7 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value7', null=True)
-    valor8 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value8', null=True)
-    valor9 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value9', null=True)
-    valor10 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value10', null=True)
-    valor11 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value11', null=True)
-    valor12 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value12', null=True)
-    valor13 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value13', null=True)
-    valor14 = models.ForeignKey(Valor, on_delete=models.CASCADE, related_name='obj_value14', null=True)
+            # Get all option-value pairs from current_linea
+            option_value_pairs = self.current_linea.lineaopcion_set.select_related('opcion', 'valor')
+
+            # Create ConfigurationOption instances
+            configuration_options = [
+                ConfigurationOption(configuration_object=self, opcion=pair.opcion, valor=pair.valor)
+                for pair in option_value_pairs
+            ]
+
+            # Bulk create the configuration options
+            ConfigurationOption.objects.bulk_create(configuration_options)
+            self.save()
+
+    def update_option_value(self, opcion, new_valor):
+        # Check if the provided option belongs to the current linea
+        if opcion in self.current_linea.opciones.all():
+            # Update the value of the provided option
+            ConfigurationOption.objects.filter(configuration_object=self, opcion=opcion).update(valor=new_valor)
+
+            # Get all option-value pairs of the current configuration
+            current_configuration =  ConfigurationOption.objects.filter(configuration_object=self, opcion__excluded=False)
+
+            # Get all excluded options
+            excluded_options = Opcion.objects.filter(excluded=True)
+            if opcion in excluded_options:
+                return
+            # Find the linea that matches the updated configuration exactly
+            for linea in LineaConfigurador.objects.filter(coleccion=self.coleccion):
+                linea_options = linea.lineaopcion_set.select_related('opcion', 'valor')
+                #if len(linea_options) != len(current_configuration):
+                #    continue  # Skip if the number of options differs
+
+                # Check if all non-excluded options match
+                all = False
+                for pair in linea_options:
+                    if (pair.opcion.id, pair.valor.id) in current_configuration.values_list('opcion', 'valor') or pair.opcion in excluded_options:
+                      all = True
+                    else:
+                        all = False
+                        break
+                if all:
+                    self.current_linea = linea
+                    self.save()
+                    self.fill_from_linea()
+                    return
+
+
+class ConfigurationOption(models.Model):
+    configuration_object = models.ForeignKey(ConfigurationObject, on_delete=models.CASCADE)
+    opcion = models.ForeignKey(Opcion, on_delete=models.CASCADE)
+    valor = models.ForeignKey(Valor, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('configuration_object', 'opcion')
+
+    def save(self, *args, **kwargs):
+        # Ensure that the option and value belong to the same linea
+        if self.opcion in self.configuration_object.current_linea.opciones.all():
+            super(ConfigurationOption, self).save(*args, **kwargs)
 
 class ConfiguradorMobiliario(models.Model):
     CodigoFamilia = models.CharField(max_length=10)

@@ -61,10 +61,15 @@ def import_from_csv_11(articles_path, lineas_path, values_path):
         for row in reader:
             print(row[1] + " code: " + row[2])
             nombreOpcion = row[1]
-            valor = Valor.objects.get_or_create(code=row[2], description=row[3])
             opciones = Opcion.objects.filter(name=nombreOpcion)
             for opcion in opciones:
-                opcion.valores.add(valor[0])
+                already_opt = opcion.valores.filter(code=row[2]).first()
+                if already_opt:
+                    already_opt.description = row[3]
+                    already_opt.save()
+                else:
+                    valor = Valor.objects.get_or_create(code=row[2], description=row[3])
+                    opcion.valores.add(valor[0])
     return
 
 import_from_csv_11('/Users/juanclusellas/Documents/NOFER/CONFIGURADOR/JSON/articulos-reduced.csv', '/Users/juanclusellas/Documents/NOFER/CONFIGURADOR/JSON/ConfiguradorMobiliario.csv', '/Users/juanclusellas/Documents/NOFER/CONFIGURADOR/JSON/Colores.csv')

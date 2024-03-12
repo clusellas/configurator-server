@@ -5,7 +5,6 @@ from django.contrib.auth.models import User
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from myapp.serializers import UserSerializer, PasswordSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
     """

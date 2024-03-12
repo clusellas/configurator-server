@@ -1,16 +1,23 @@
 from rest_framework import serializers
-from server.models import Design, Ancho, Eje, Coleccion, ConfigurationObject, Articles
+from server.models import Design, Ancho, Eje, Coleccion, ConfigurationObject, Articles, ConfigurationOption
 from server.serializers.articleSerializer import articleSerializer
 from server.serializers.coleccionSerializer import coleccionSerializer
+from server.serializers.configurationOptionSerializer import configurationOptionSerializer
 from server.serializers.lineaConfiguradorSerializer import LineaConfiguradorSerializer
 
 
 class configurationObjectSerializer(serializers.ModelSerializer):
     current_linea = LineaConfiguradorSerializer()
     articulo = articleSerializer()
+    opciones_y_valores = serializers.SerializerMethodField()
     class Meta:
         model = ConfigurationObject
-        fields = ('id', 'coleccion', 'design', 'ancho', 'eje', 'articulo','current_linea')
+        fields = ('id', 'coleccion', 'design', 'ancho', 'eje', 'articulo','current_linea','opciones_y_valores')
+        depth = 1
+    def get_opciones_y_valores(self, obj):
+        qset = ConfigurationOption.objects.filter(configuration_object=obj)
+        return [configurationOptionSerializer(m).data for m in qset]
+
 
 class CreateConfigurationObjectSerializer(serializers.ModelSerializer):
     coleccion_id = serializers.IntegerField()
